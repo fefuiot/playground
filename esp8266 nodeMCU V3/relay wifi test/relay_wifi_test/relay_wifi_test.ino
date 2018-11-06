@@ -38,9 +38,9 @@ void setup()
 
   WiFi.printDiag(Serial);
 
-  server.on("/", handleRootPath);
-  server.on("/on", tapeOn);
-  server.on("/off", tapeOff);
+  server.on("/", HTTP_GET, handleRoot);     // Call the 'handleRoot' function when a client requests URI "/"
+  server.on("/LED", HTTP_POST, handleLED);  // Call the 'handleLED' function when a POST request is made to URI "/LED"
+  server.onNotFound(handleNotFound);
   server.begin();
   Serial.println("Server is on");
 }
@@ -50,20 +50,16 @@ void loop()
   server.handleClient();
 }
 
-void tapeOn()
-{
-  digitalWrite(TAPE_SIGNAL, LOW);
-  server.send(200, "text/plain", "Tape on!");
+void handleLED() {                          // If a POST request is made to URI /LED
+  digitalWrite(LED, !digitalRead(LED));     // Change the state of the LED
+  server.sendHeader("Location","/");        // Add a header to respond with a new location for the browser to go to the home page again
+  server.send(303);                         // Send it back to the browser with an HTTP status 303 (See Other) to redirect
 }
 
-void tapeOff()
-{
-  digitalWrite(TAPE_SIGNAL, HIGH);
-  server.send(200, "text/plain", "Tape off!");
+void handleRoot() {
+  server.send(200, "text/html", "<form action=\"/LED\" method=\"POST\"><input type=\"submit\" value=\"Toggle LED\"></form>");
 }
 
-void handleRootPath()
-{
-  server.send(200, "text/plain", "Hello");
+void handleNotFound(){
+  server.send(404, "text/plain", "404: Not found"); // Send HTTP status 404 (Not Found) when there's no handler for the URI in the request
 }
-
