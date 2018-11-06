@@ -1,3 +1,4 @@
+
 // Test of relay switching based on web socket commands
 // IP for my esp: 192.168.88.255
 
@@ -16,59 +17,53 @@ ESP8266WebServer server(80);
 bool noLight = false;
 bool isOn = false;
 
-String html = 
-"<!DOCTYPE html><html>"
-    "<head>"
-        "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">"
-            "<link rel=\"icon\" href=\"data:,\">"
-                "<style>"
-                    "html" 
-                    "{"
-                    "    font-family: Helvetica;"
-                    "    display: inline-block;" 
-                    "    margin: 0px auto;"
-                    "    text-align: center;"
-                    "}"
-                    ".button"
-                    "{"
-                    "    background-color: #195B6A;"
-                    "    border: none;"
-                    "    color: white;" +
-                    "    padding: 16px 40px;"
-                    "    text-decoration: none;"
-                    "    font-size: 30px;"
-                    "    margin: 2px;"
-                    "    cursor: pointer;"
-                    "}"
-                    ".button2"
-                    "{"
-                    "    background-color: #77878A;"
-                    "}"
-                "</style>"
-    "</head>"
-    "<body>"
-        "<h1>ESP8266 Web Server</h1>"
-        "<p>LED Tape</p>"
-        "<p>"
-            "<a href=\"/LED\">"
-                "<button type=\"submit\" class=\"button\" form action=\"/Tape\" method=\"POST\">Toggle</button>"
-            "</a>"
-        "</p>"
-    "</body>"
-"</html>";
+int newtime = 0, lasttime = 0;
+int newvalue = 0, lastvalue = 0;
+
+const char html[] PROGMEM = R"=====(
+<!DOCTYPE html><html> 
+    <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+            <link rel="icon" href="data:,">
+                <style>
+                    html
+                    {
+                        font-family: Helvetica;
+                        display: inline-block;
+                        margin: 0px auto;
+                        text-align: center; 
+                    }
+                    .button 
+                    { 
+                        background-color: #195B6A; 
+                        border: none; 
+                        color: white; 
+                        padding: 16px 40px; 
+                        text-decoration: none;
+                        font-size: 30px;
+                        margin: 2px; 
+                        cursor: pointer;
+                    }
+                    .button2 
+                    {
+                        background-color: #77878A;
+                    }
+                </style>
+    </head>
+    <body>
+        <h1>ESP8266 Web Server</h1>
+        <p>LED Tape</p>
+        <form method="POST" action="/tape"><button class="button">Toggle</button></form>
+    </body>
+</html>
+)=====";
 
 void setup() 
 {
   pinMode(TAPE_SIGNAL, OUTPUT);
   pinMode(LED, OUTPUT);
-
-  /*WiFi.softAPdisconnect();  // Making sure that WiFi works as expected
-  WiFi.mode(WIFI_STA);
-  delay(100);
+  
   WiFi.begin(ssid, password);
-  */
-
-  WiFi.softAP("qwe");
 
   Serial.begin(115200);
   
@@ -79,32 +74,39 @@ void setup()
   }
   Serial.println("Connected. My IP:");
   Serial.println(WiFi.localIP());
-  digitalWrite(LED, LOW);
-
   WiFi.printDiag(Serial);
-
+  digitalWrite(LED, LOW);
+  
   server.on("/", handleRootPath);
-  server.on("/Tape", handleToggleButton);
+  server.on("/tape", handleToggleButton);
   server.begin();
   Serial.println("Server is on");
+  handleLight();
 }
 
 void loop() 
 {
+  newtime = millis();
   server.handleClient();
-  
-  if (analogRead(SENSOR_PIN) >= 300)
-    noLight = true;
-  else
-    noLight = false;
+  if ((newtime - lasttime > 5000) || lasttime == 0)
+  {
+    if (analogRead(SENSOR_PIN) >= 300) {
+      lastvalue = newvalue; 
+      noLight = true;
+    }
+    else
+      noLight = false;
     
-  handleLight();
-  delay(10);
+    handleLight();
+    lasttime = newtime;
+  }
+  
 }
 
 void handleRootPath()
 {
-  server.send(200, "text/plain", html); 
+  String s = html;
+  server.send(200, "text/html", html); 
 }
 
 void handleToggleButton() {
